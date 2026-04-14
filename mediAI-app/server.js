@@ -8,6 +8,7 @@ import { OpenAI } from "openai";
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 dotenv.config();
+console.log("HF token loaded:", process.env.HF_TOKEN ? "YES" : "NO");
 
 const app = express();
 const PORT = 3001;
@@ -79,16 +80,16 @@ async function setupDB() {
   // Auto-migrate old database schema to include session_id, attachments, etc
   try {
     await db.exec("ALTER TABLE messages ADD COLUMN user_id TEXT DEFAULT 'default-user'");
-  } catch (e) {}
-  
+  } catch (e) { }
+
   try {
     await db.exec("ALTER TABLE messages ADD COLUMN session_id TEXT DEFAULT 'default'");
-  } catch(e) {}
+  } catch (e) { }
 
   try {
     await db.exec("ALTER TABLE messages ADD COLUMN attachments TEXT DEFAULT '[]'");
     console.log("✅ Database migrated: Added attachments column");
-  } catch (e) {}
+  } catch (e) { }
 
   console.log("✅ Database connected");
 }
@@ -206,13 +207,13 @@ app.post('/api/chat', async (req, res) => {
         try {
           const parsedFiles = JSON.parse(row.attachments || "[]");
           parsedFiles.forEach(f => {
-             if (f.type === 'image' && f.url && f.url.startsWith('data:')) {
-                const mimeType = f.url.split(';')[0].split(':')[1];
-                const data = f.url.split(',')[1];
-                parts.push({ inlineData: { data, mimeType } });
-             }
+            if (f.type === 'image' && f.url && f.url.startsWith('data:')) {
+              const mimeType = f.url.split(';')[0].split(':')[1];
+              const data = f.url.split(',')[1];
+              parts.push({ inlineData: { data, mimeType } });
+            }
           });
-        } catch(e) {}
+        } catch (e) { }
         return {
           role: row.role === "assistant" ? "model" : "user",
           parts
@@ -222,10 +223,10 @@ app.post('/api/chat', async (req, res) => {
       const chat = geminiModel.startChat({
         history: history.slice(0, -1)
       });
-      
+
       const lastMessageParts = history[history.length - 1].parts;
       lastMessageParts[0].text = `${SYSTEM_PROMPT}\n\nUser: ${lastMessageParts[0].text}`;
-      
+
       const result = await chat.sendMessage(lastMessageParts);
       aiResponseText = result.response.text();
     }
@@ -235,19 +236,19 @@ app.post('/api/chat', async (req, res) => {
       const messages = [
         { role: "system", content: SYSTEM_PROMPT },
         ...historyRows.reverse().map((row) => {
-           let parsedFiles = [];
-           try { parsedFiles = JSON.parse(row.attachments || "[]"); } catch(e) {}
-           
-           if (parsedFiles.length > 0 && row.role === "user") {
-              const contentArr = [{ type: "text", text: row.content || "Here is an image." }];
-              parsedFiles.forEach(f => {
-                 if (f.type === 'image' && f.url) {
-                    contentArr.push({ type: "image_url", image_url: { url: f.url } });
-                 }
-              });
-              return { role: row.role, content: contentArr };
-           }
-           return { role: row.role, content: row.content };
+          let parsedFiles = [];
+          try { parsedFiles = JSON.parse(row.attachments || "[]"); } catch (e) { }
+
+          if (parsedFiles.length > 0 && row.role === "user") {
+            const contentArr = [{ type: "text", text: row.content || "Here is an image." }];
+            parsedFiles.forEach(f => {
+              if (f.type === 'image' && f.url) {
+                contentArr.push({ type: "image_url", image_url: { url: f.url } });
+              }
+            });
+            return { role: row.role, content: contentArr };
+          }
+          return { role: row.role, content: row.content };
         })
       ];
 

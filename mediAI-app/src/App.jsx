@@ -1,62 +1,73 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import Sidebar from './components/Sidebar.jsx';
-import ChatMessage from './components/ChatMessage.jsx';
-import InputBar from './components/InputBar.jsx';
-import WelcomeScreen from './components/WelcomeScreen.jsx';
-import AssistantAvatar from './components/AssistantAvatar.jsx';
-import { SignedIn, SignedOut, SignIn, useUser } from '@clerk/clerk-react';
-import './index.css';
+import { useState, useRef, useEffect, useCallback } from "react";
+import Sidebar from "./components/Sidebar.jsx";
+import ChatMessage from "./components/ChatMessage.jsx";
+import InputBar from "./components/InputBar.jsx";
+import WelcomeScreen from "./components/WelcomeScreen.jsx";
+import AssistantAvatar from "./components/AssistantAvatar.jsx";
+import { SignedIn, SignedOut, SignIn, useUser } from "@clerk/clerk-react";
+import "./index.css";
 
 // Backend API URL
-const API_URL = 'http://localhost:3001/api';
+const API_URL = "http://51.20.53.121:3001/api";
 
 function nowTime() {
-  return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  return new Date().toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export default function App() {
   const { user } = useUser();
-  const userId = user?.id || 'default-user';
+  const userId = user?.id || "default-user";
 
   const [messages, setMessages] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [sessionId, setSessionId] = useState(() => Date.now().toString());
-  const [selectedModel, setSelectedModel] = useState('huggingface');
+  const [selectedModel, setSelectedModel] = useState("huggingface");
   const [isLoading, setIsLoading] = useState(false);
   const [isEngaged, setIsEngaged] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [voiceState, setVoiceState] = useState('idle');
+  const [voiceState, setVoiceState] = useState("idle");
   const [isThinking, setIsThinking] = useState(false);
   const bottomRef = useRef(null);
 
-  let assistantState = 'normal';
-  if (isThinking) assistantState = 'loading';
-  else if (voiceState === 'error') assistantState = 'error';
-  else if (voiceState === 'listening') assistantState = 'listening';
+  let assistantState = "normal";
+  if (isThinking) assistantState = "loading";
+  else if (voiceState === "error") assistantState = "error";
+  else if (voiceState === "listening") assistantState = "listening";
 
   const scrollDown = useCallback(() => {
     setTimeout(() => {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     }, 150);
   }, []);
 
   useEffect(() => {
     scrollDown();
-    window.addEventListener('resize', scrollDown);
-    return () => window.removeEventListener('resize', scrollDown);
+    window.addEventListener("resize", scrollDown);
+    return () => window.removeEventListener("resize", scrollDown);
   }, [messages, scrollDown]);
 
-  const formatMessages = (msgs) => msgs.map(m => {
-    let parsedFiles = [];
-    if (m.attachments) {
-      try { parsedFiles = JSON.parse(m.attachments); } catch (e) { }
-    }
-    return {
-      ...m,
-      files: parsedFiles,
-      time: m.created_at ? new Date(m.created_at + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : nowTime()
-    };
-  });
+  const formatMessages = (msgs) =>
+    msgs.map((m) => {
+      let parsedFiles = [];
+      if (m.attachments) {
+        try {
+          parsedFiles = JSON.parse(m.attachments);
+        } catch (e) {}
+      }
+      return {
+        ...m,
+        files: parsedFiles,
+        time: m.created_at
+          ? new Date(m.created_at + "Z").toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : nowTime(),
+      };
+    });
 
   const loadSessions = useCallback(async () => {
     if (!user) return;
@@ -66,33 +77,35 @@ export default function App() {
       if (data.success && data.sessions) {
         setSessions(data.sessions);
       }
-    } catch (e) { }
+    } catch (e) {}
   }, [user, userId]);
 
   // Initial load for sessions
   useEffect(() => {
     if (!user) return;
-    fetch(`${API_URL}/sessions/${userId}`).then(r => r.json()).then(data => {
-      if (data.success && data.sessions && data.sessions.length > 0) {
-        setSessions(data.sessions);
-        setSessionId(data.sessions[0].id);
-      }
-    });
+    fetch(`${API_URL}/sessions/${userId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.sessions && data.sessions.length > 0) {
+          setSessions(data.sessions);
+          setSessionId(data.sessions[0].id);
+        }
+      });
   }, [user, userId]);
 
   // Fetch history when sessionId changes
   useEffect(() => {
     if (!user || !sessionId) return;
     fetch(`${API_URL}/history/${userId}/${sessionId}`)
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         if (data.success && Array.isArray(data.messages)) {
           setMessages(formatMessages(data.messages));
         } else {
           setMessages([]);
         }
       })
-      .catch(err => console.error("Failed to load history", err));
+      .catch((err) => console.error("Failed to load history", err));
   }, [user, userId, sessionId]);
 
   const handleNewChat = useCallback(() => {
@@ -104,10 +117,17 @@ export default function App() {
 
   const handleDeleteSession = useCallback(async () => {
     if (!messages || messages.length === 0) return;
-    if (!window.confirm("Are you sure you want to delete this chat session? (Yes/No)")) return;
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this chat session? (Yes/No)",
+      )
+    )
+      return;
 
     try {
-      const res = await fetch(`${API_URL}/history/${userId}/${sessionId}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/history/${userId}/${sessionId}`, {
+        method: "DELETE",
+      });
       if (res.ok) {
         setMessages([]);
         setSessionId(Date.now().toString());
@@ -121,62 +141,84 @@ export default function App() {
     }
   }, [userId, sessionId, messages, loadSessions]);
 
-  const sendMessage = useCallback(async (text, files = []) => {
-    if (!text && files.length === 0) return;
+  const sendMessage = useCallback(
+    async (text, files = []) => {
+      if (!text && files.length === 0) return;
 
-    // Optimistically add user message
-    const tempId = Date.now();
-    const userMsg = { id: tempId, role: 'user', content: text, files, time: nowTime() };
-    const typingId = tempId + 1;
-    const typingMsg = { id: typingId, role: 'assistant', isTyping: true };
+      // Optimistically add user message
+      const tempId = Date.now();
+      const userMsg = {
+        id: tempId,
+        role: "user",
+        content: text,
+        files,
+        time: nowTime(),
+      };
+      const typingId = tempId + 1;
+      const typingMsg = { id: typingId, role: "assistant", isTyping: true };
 
-    setMessages((p) => [...p, userMsg, typingMsg]);
-    setIsLoading(true);
-    scrollDown();
+      setMessages((p) => [...p, userMsg, typingMsg]);
+      setIsLoading(true);
+      scrollDown();
 
-    // Delay the face transitioning to loading state
-    // const faceTimer = setTimeout(() => setIsThinking(true), 100);
+      // Delay the face transitioning to loading state
+      // const faceTimer = setTimeout(() => setIsThinking(true), 100);
 
-    try {
-      // Convert UI files to Base64 to send to server
-      const base64FilesPromises = files.map(f => {
-        return new Promise((resolve) => {
-          if (!f.file) return resolve(null);
-          const reader = new FileReader();
-          reader.readAsDataURL(f.file);
-          reader.onload = () => resolve({ type: f.type, name: f.name, url: reader.result });
-          reader.onerror = () => resolve(null);
+      try {
+        // Convert UI files to Base64 to send to server
+        const base64FilesPromises = files.map((f) => {
+          return new Promise((resolve) => {
+            if (!f.file) return resolve(null);
+            const reader = new FileReader();
+            reader.readAsDataURL(f.file);
+            reader.onload = () =>
+              resolve({ type: f.type, name: f.name, url: reader.result });
+            reader.onerror = () => resolve(null);
+          });
         });
-      });
-      const resolvedFiles = await Promise.all(base64FilesPromises);
-      const validFiles = resolvedFiles.filter(Boolean);
+        const resolvedFiles = await Promise.all(base64FilesPromises);
+        const validFiles = resolvedFiles.filter(Boolean);
 
-      const response = await fetch(`${API_URL}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: text, files: validFiles, modelChoice: selectedModel, userId, sessionId })
-      });
+        const response = await fetch(`${API_URL}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: text,
+            files: validFiles,
+            modelChoice: selectedModel,
+            userId,
+            sessionId,
+          }),
+        });
 
-      const data = await response.json();
-      if (data.success && Array.isArray(data.messages)) {
-        setMessages(formatMessages(data.messages));
-      } else if (!data.success) {
-        throw new Error(data.message || 'Unknown error');
+        const data = await response.json();
+        if (data.success && Array.isArray(data.messages)) {
+          setMessages(formatMessages(data.messages));
+        } else if (!data.success) {
+          throw new Error(data.message || "Unknown error");
+        }
+      } catch (error) {
+        console.error("Chat Error:", error);
+        setMessages((p) =>
+          p.map((m) =>
+            m.id === typingId
+              ? {
+                  ...m,
+                  isTyping: false,
+                  content: `⚠️ Error: ${error.message || "Failed connecting to server."}`,
+                  time: nowTime(),
+                }
+              : m,
+          ),
+        );
+      } finally {
+        setIsLoading(false);
+        setIsThinking(false);
+        loadSessions(); // Moved here so the sidebar updates even if HuggingFace 429 crashes the response!
       }
-    } catch (error) {
-      console.error("Chat Error:", error);
-      setMessages((p) =>
-        p.map((m) =>
-          m.id === typingId ? { ...m, isTyping: false, content: `⚠️ Error: ${error.message || 'Failed connecting to server.'}`, time: nowTime() } : m
-        )
-      );
-    } finally {
-      clearTimeout(faceTimer);
-      setIsLoading(false);
-      setIsThinking(false);
-      loadSessions(); // Moved here so the sidebar updates even if HuggingFace 429 crashes the response!
-    }
-  }, [scrollDown, selectedModel, userId, sessionId, loadSessions]);
+    },
+    [scrollDown, selectedModel, userId, sessionId, loadSessions],
+  );
 
   const hasMessages = messages.length > 0;
 
@@ -220,8 +262,18 @@ export default function App() {
               onClick={() => setSidebarOpen(true)}
               className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all lg:hidden"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
               </svg>
             </button>
 
@@ -238,7 +290,9 @@ export default function App() {
               </div>
               <div className="flex items-center gap-1.5 ml-1">
                 <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-xs text-green-400/70 hidden sm:inline">Online</span>
+                <span className="text-xs text-green-400/70 hidden sm:inline">
+                  Online
+                </span>
               </div>
             </div>
 
@@ -259,8 +313,18 @@ export default function App() {
                 className="w-10 h-10 flex items-center justify-center rounded-xl text-red-500 hover:text-white bg-red-500/10 hover:bg-red-600 transition-all shadow-md ml-2"
                 title="Delete this chat session"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
                 </svg>
               </button>
             </div>
@@ -271,14 +335,20 @@ export default function App() {
             {!hasMessages ? (
               isEngaged ? (
                 <div className="max-w-3xl mx-auto pl-6 py-6 space-y-5 -translate-x-4 w-full h-full flex flex-col justify-end pb-8 animate-message-in">
-                  <ChatMessage message={{
-                    id: 'intro',
-                    role: 'assistant',
-                    content: "Hello! I’m **MediAI**, your AI medical assistant. \n\nI can help with symptoms, general health concerns, over-the-counter medicines, and skin issue analysis through uploaded images.\n\nHow can I help today?"
-                  }} />
+                  <ChatMessage
+                    message={{
+                      id: "intro",
+                      role: "assistant",
+                      content:
+                        "Hello! I’m **MediAI**, your AI medical assistant. \n\nI can help with symptoms, general health concerns, over-the-counter medicines, and skin issue analysis through uploaded images.\n\nHow can I help today?",
+                    }}
+                  />
                 </div>
               ) : (
-                <WelcomeScreen onSuggest={(text) => sendMessage(text)} assistantState={assistantState} />
+                <WelcomeScreen
+                  onSuggest={(text) => sendMessage(text)}
+                  assistantState={assistantState}
+                />
               )
             ) : (
               <div className="max-w-3xl mx-auto pl-6 py-6 space-y-5 -translate-x-4 w-full">
@@ -293,7 +363,12 @@ export default function App() {
           {/* Input bar */}
           <div className="border-t border-white/5 bg-[#050b14]/90 backdrop-blur-xl px-4 py-4 z-10 w-full relative">
             <div className="max-w-3xl mx-auto">
-              <InputBar onSend={sendMessage} isLoading={isLoading} onVoiceStateChange={setVoiceState} onEngage={() => setIsEngaged(true)} />
+              <InputBar
+                onSend={sendMessage}
+                isLoading={isLoading}
+                onVoiceStateChange={setVoiceState}
+                onEngage={() => setIsEngaged(true)}
+              />
             </div>
           </div>
 
