@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+import Admin from './Admin.jsx'
 import { ClerkProvider } from '@clerk/clerk-react'
 import { dark } from '@clerk/themes'
 
@@ -9,6 +10,8 @@ import { dark } from '@clerk/themes'
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
 const root = createRoot(document.getElementById('root'))
+
+const path = window.location.pathname;
 
 if (!PUBLISHABLE_KEY) {
   root.render(
@@ -20,6 +23,12 @@ if (!PUBLISHABLE_KEY) {
         </p>
       </div>
     </div>
+  )
+} else if (path === '/admin') {
+  root.render(
+    <StrictMode>
+      <Admin />
+    </StrictMode>
   )
 } else {
   root.render(

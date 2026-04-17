@@ -12,5 +12,11 @@ export default defineConfig({
       "www.nineworld.space",
       "web.nineworld.space",
     ],
+    proxy: {
+      "/api": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
+    },
   },
 });

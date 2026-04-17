@@ -7,8 +7,8 @@ import AssistantAvatar from "./components/AssistantAvatar.jsx";
 import { SignedIn, SignedOut, SignIn, useUser } from "@clerk/clerk-react";
 import "./index.css";
 
-// Backend API URL
-const API_URL = "http://51.20.53.121:3001/api";
+// Backend API URL — use Vite proxy so all /api calls go through localhost:5173 → 3001
+const API_URL = "/api";
 
 function nowTime() {
   return new Date().toLocaleTimeString("en-US", {
@@ -24,16 +24,22 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [sessionId, setSessionId] = useState(() => Date.now().toString());
-  const [selectedModel, setSelectedModel] = useState("huggingface");
+  const [selectedModel, setSelectedModel] = useState("meta-llama/Llama-3.2-1B-Instruct");
+  const [availableModels, setAvailableModels] = useState([
+    { id: "meta-llama/Llama-3.2-1B-Instruct", label: "🤗 Llama 3.2 1B (HuggingFace)" },
+    { id: "gemini", label: "✨ Gemini 2.5 (Google)" },
+  ]);
   const [isLoading, setIsLoading] = useState(false);
   const [isEngaged, setIsEngaged] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [voiceState, setVoiceState] = useState("idle");
   const [isThinking, setIsThinking] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const bottomRef = useRef(null);
 
   let assistantState = "normal";
-  if (isThinking) assistantState = "loading";
+  if (hasError) assistantState = "error";
+  else if (isThinking) assistantState = "loading";
   else if (voiceState === "error") assistantState = "error";
   else if (voiceState === "listening") assistantState = "listening";
 
@@ -48,6 +54,21 @@ export default function App() {
     window.addEventListener("resize", scrollDown);
     return () => window.removeEventListener("resize", scrollDown);
   }, [messages, scrollDown]);
+
+  // Fetch available models from server dynamically
+  useEffect(() => {
+    fetch(`${API_URL}/models`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.models) && data.models.length > 0) {
+          setAvailableModels(data.models);
+          // Keep default as HuggingFace (index 1 = gemma) unless admin changed it
+          const hfModel = data.models.find(m => m.provider === "huggingface");
+          if (hfModel) setSelectedModel(hfModel.id);
+        }
+      })
+      .catch(() => {}); // Silently fail — fallback defaults are already set
+  }, []);
 
   const formatMessages = (msgs) =>
     msgs.map((m) => {
@@ -159,6 +180,7 @@ export default function App() {
 
       setMessages((p) => [...p, userMsg, typingMsg]);
       setIsLoading(true);
+      setIsThinking(true);
       scrollDown();
 
       // Delay the face transitioning to loading state
@@ -179,8 +201,13 @@ export default function App() {
         const resolvedFiles = await Promise.all(base64FilesPromises);
         const validFiles = resolvedFiles.filter(Boolean);
 
+        // Timeout after 45 seconds so the loading spinner never hangs forever
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 45000);
+
         const response = await fetch(`${API_URL}/chat`, {
           method: "POST",
+          signal: controller.signal,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             content: text,
@@ -190,15 +217,33 @@ export default function App() {
             sessionId,
           }),
         });
+        clearTimeout(timeoutId);
 
-        const data = await response.json();
-        if (data.success && Array.isArray(data.messages)) {
-          setMessages(formatMessages(data.messages));
-        } else if (!data.success) {
-          throw new Error(data.message || "Unknown error");
+        let data;
+        try {
+          data = await response.json();
+        } catch {
+          throw new Error("Server returned an invalid response. Please try again.");
         }
+
+        if (!response.ok || !data.success) {
+          throw new Error(data?.message || `Server error ${response.status}`);
+        }
+
+        // Backend returns { success: true, message: "AI reply text" }
+        const aiReply = data.message;
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === typingId
+              ? { ...m, isTyping: false, content: aiReply, time: nowTime() }
+              : m,
+          ),
+        );
+        scrollDown();
       } catch (error) {
         console.error("Chat Error:", error);
+        setHasError(true);
+        setTimeout(() => setHasError(false), 4000);
         setMessages((p) =>
           p.map((m) =>
             m.id === typingId
@@ -304,8 +349,9 @@ export default function App() {
                   onChange={(e) => setSelectedModel(e.target.value)}
                   className="bg-[#050b14]/80 border border-white/10 text-slate-300 text-xs rounded-lg px-2 py-1.5 outline-none focus:border-cyan-500/50 transition-colors cursor-pointer mr-2"
                 >
-                  <option value="huggingface">🤖 Gemma 4 26B (HF)</option>
-                  <option value="gemini">✨ Gemini 2.5 (Google)</option>
+                  {availableModels.map(m => (
+                    <option key={m.id} value={m.id}>{m.label}</option>
+                  ))}
                 </select>
               </div>
               <button
@@ -373,8 +419,8 @@ export default function App() {
           </div>
 
           {/* Floating Avatar */}
-          {hasMessages && (
-            <div className="absolute top-24 right-10 z-30 pointer-events-none hidden lg:block transition-all duration-700">
+          {(hasMessages || isLoading || isThinking) && (
+            <div className={`absolute top-24 right-10 z-30 pointer-events-none hidden lg:block transition-all duration-700 ${hasMessages ? '' : 'opacity-60'}`}>
               <AssistantAvatar
                 state={assistantState}
                 className="w-48 h-48 drop-shadow-[0_0_40px_rgba(34,211,238,0.4)]"

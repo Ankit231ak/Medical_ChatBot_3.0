@@ -91,39 +91,51 @@ export default function InputBar({
       triggerError("Speech recognition not supported on this browser context.");
       return;
     }
+    
     setVoiceError(false);
     initialTextRef.current = text ? text + " " : "";
 
     const rec = new SpeechRecognition();
-    rec.continuous = true;
+    rec.continuous = false;
     rec.interimResults = true;
     rec.lang = "en-US";
-    rec.onresult = (e) => {
-      const chunks = Array.from(e.results).map((r) => r[0].transcript.trim());
-      const dedupedChunks = chunks.filter(
-        (chunk, i) =>
-          i === 0 || chunk.toLowerCase() !== chunks[i - 1].toLowerCase(),
-      );
-
-      setText(initialTextRef.current + dedupedChunks.join(" "));
+    
+    rec.onstart = () => {
+      setIsListening(true);
+      if (onVoiceStateChange) onVoiceStateChange("listening");
     };
+    
+    rec.onresult = (e) => {
+      let finalTranscript = "";
+      let interimTranscript = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const transcript = e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          finalTranscript += transcript + " ";
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+      setText(initialTextRef.current + finalTranscript + interimTranscript);
+    };
+    
     rec.onerror = (e) => {
+      if (e.error === "aborted" || e.error === "no-speech") return;
       let msg = "Microphone error.";
       if (e.error === "not-allowed")
         msg = "Microphone access denied by browser.";
       if (e.error === "network")
         msg = "Voice recognition requires an active network.";
-      if (e.error === "no-speech") msg = "No speech detected (timeout).";
       triggerError(msg);
     };
+    
     rec.onend = () => {
       setIsListening(false);
       if (onVoiceStateChange) onVoiceStateChange("idle");
     };
-    rec.start();
+    
     recognitionRef.current = rec;
-    setIsListening(true);
-    if (onVoiceStateChange) onVoiceStateChange("listening");
+    rec.start();
   };
 
   const stopListening = () => {
