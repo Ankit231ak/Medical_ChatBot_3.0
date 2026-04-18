@@ -118,14 +118,37 @@ jobs:
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: |
+          for secret_name in GEMINI_API_KEY HF_TOKEN CLERK_SECRET_KEY VITE_CLERK_PUBLISHABLE_KEY ADMIN_USERNAME ADMIN_PASSWORD; do
+            if [ -z "${!secret_name}" ]; then
+              echo "Missing GitHub secret: $secret_name"
+              exit 1
+            fi
+          done
+
+          {
+            echo "PORT=3000"
+            echo "NODE_ENV=production"
+            echo "GEMINI_API_KEY=$GEMINI_API_KEY"
+            echo "HF_TOKEN=$HF_TOKEN"
+            echo "CLERK_SECRET_KEY=$CLERK_SECRET_KEY"
+            echo "VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY"
+            echo "ADMIN_USERNAME=$ADMIN_USERNAME"
+            echo "ADMIN_PASSWORD=$ADMIN_PASSWORD"
+          } > .env.production
+
+          scp -i ~/.ssh/ec2_key .env.production "$EC2_USER@$EC2_HOST:$APP_DIR/.env"
+          rm .env.production
+
           ssh -i ~/.ssh/ec2_key "$EC2_USER@$EC2_HOST" << EOF
             set -e
             cd "$APP_DIR"
-            if [ ! -f .env ]; then
-              echo "Missing $APP_DIR/.env on EC2. Create it once on the server before deploying."
-              exit 1
-            fi
             npm ci --omit=dev
             if pm2 describe mediai > /dev/null; then
               pm2 restart mediai --update-env
