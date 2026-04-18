@@ -74,10 +74,14 @@ jobs:
             echo "Missing GitHub secret: EC2_SSH_KEY"
             exit 1
           fi
+          if echo "$EC2_HOST" | grep -Eq '^(https?://|ssh://|.*@)'; then
+            echo "EC2_HOST must be only the public IP or DNS name, not a URL and not user@host."
+            exit 1
+          fi
           mkdir -p ~/.ssh
           printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/ec2_key
           chmod 600 ~/.ssh/ec2_key
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+          ssh-keyscan -T 15 -H "$EC2_HOST" >> ~/.ssh/known_hosts
 
       - name: Create app directory
         env:
@@ -128,4 +132,3 @@ jobs:
             sudo nginx -t
             sudo systemctl reload nginx
           EOF
-
