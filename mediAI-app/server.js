@@ -32,7 +32,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "20mb" }));
 
 /* =========================
    GLOBAL STATE (ADMIN CONTROL)
@@ -126,6 +126,9 @@ async function callHuggingFaceChat(model, content) {
     if (hfResponse.status === 404) {
       return `Model not found or not supported by Hugging Face Router: ${model}. Please check the model ID and provider.`;
     }
+    if (hfResponse.status === 400) {
+      return `Model request rejected for ${model}: ${providerMessage}. For image uploads, switch to Gemini in the model dropdown.`;
+    }
     if (hfResponse.status === 429) {
       return "Hugging Face is rate limiting this token/model right now. Please wait and try again, or switch to Gemini.";
     }
@@ -147,6 +150,33 @@ async function callHuggingFaceChat(model, content) {
   }
 
   return `No text response returned by model: ${model}. This model may not support chat completions through Hugging Face Router.`;
+}
+
+function getImageParts(files = []) {
+  return files
+    .filter((file) => file?.type === "image" && file?.url?.startsWith("data:"))
+    .map((file) => {
+      const match = file.url.match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) return null;
+      return {
+        inlineData: {
+          mimeType: match[1],
+          data: match[2],
+        },
+      };
+    })
+    .filter(Boolean);
+}
+
+function getSafeAttachments(files = []) {
+  return files
+    .filter((file) => file?.name && file?.type && file?.url)
+    .slice(0, 4)
+    .map((file) => ({
+      name: file.name,
+      type: file.type,
+      url: file.url,
+    }));
 }
 
 /* =========================
@@ -366,10 +396,22 @@ app.post("/api/admin/delete-user-data", adminAuth, async (req, res) => {
 app.post("/api/chat", chatLimiter, async (req, res) => {
   await checkBlockedUser(db, req, res, async () => {
     try {
-      const { content, userId, sessionId, modelChoice } = req.body;
+      const { content, userId, sessionId, modelChoice, files = [] } = req.body;
+      const safeAttachments = getSafeAttachments(files);
+      const imageParts = getImageParts(safeAttachments);
+      const hasAttachments = safeAttachments.length > 0;
+      const hasImages = imageParts.length > 0;
+      const promptText =
+        content?.trim() ||
+        (hasImages
+          ? "Please analyze the uploaded medical image and describe what you can observe."
+          : "Please review the uploaded file.");
 
-      if (!content) {
-        return res.status(400).json({ message: "content required" });
+      if (!promptText && !hasAttachments) {
+        return res.status(400).json({
+          success: false,
+          message: "Please enter a message or upload an image.",
+        });
       }
 
       /* Block check */
@@ -393,9 +435,15 @@ app.post("/api/chat", chatLimiter, async (req, res) => {
 
       /* Save user */
       await db.run(
-        `INSERT INTO messages (user_id, session_id, role, content)
-       VALUES (?, ?, ?, ?)`,
-        [userId, sessionId, "user", content],
+        `INSERT INTO messages (user_id, session_id, role, content, attachments)
+       VALUES (?, ?, ?, ?, ?)`,
+        [
+          userId,
+          sessionId,
+          "user",
+          promptText,
+          JSON.stringify(safeAttachments),
+        ],
       );
 
       let aiResponseText = "";
@@ -412,12 +460,20 @@ app.post("/api/chat", chatLimiter, async (req, res) => {
           : "huggingface";
 
       /* ─── CALL AI ─── */
-      if (provider === "gemini") {
+      if (hasAttachments && !hasImages) {
+        aiResponseText =
+          "I received your file, but this deployment currently supports image analysis only. Please upload an image, or paste the PDF/report text into the chat.";
+      } else if (provider === "gemini" || hasImages) {
         try {
-          const result = await geminiModel.generateContent(
-            `${SYSTEM_PROMPT}\nUser: ${content}`,
-          );
+          const geminiParts = [
+            { text: `${SYSTEM_PROMPT}\nUser: ${promptText}` },
+            ...imageParts,
+          ];
+          const result = await geminiModel.generateContent(geminiParts);
           aiResponseText = result.response.text();
+          if (hasImages && provider !== "gemini") {
+            aiResponseText = `_(Image upload analyzed with Gemini because ${modelToUse} does not support images in this app.)_\n\n${aiResponseText}`;
+          }
         } catch (geminiErr) {
           // Gemini 503/overloaded → auto-fallback to Llama (HuggingFace)
           const is503 =
@@ -429,7 +485,7 @@ app.post("/api/chat", chatLimiter, async (req, res) => {
             const fallbackModel = "meta-llama/Llama-3.2-1B-Instruct";
             aiResponseText = await callHuggingFaceChat(
               fallbackModel,
-              content,
+              promptText,
             );
             // Prefix so the user knows what happened
             aiResponseText = `_(Gemini busy, responded via Llama)_\n\n${aiResponseText}`;
@@ -439,7 +495,12 @@ app.post("/api/chat", chatLimiter, async (req, res) => {
         }
       } else {
         /* HUGGING FACE */
-        aiResponseText = await callHuggingFaceChat(modelToUse, content);
+        if (hasImages) {
+          aiResponseText =
+            "This selected Hugging Face model cannot analyze uploaded images in this app. Please switch the model dropdown to Gemini for image analysis.";
+        } else {
+          aiResponseText = await callHuggingFaceChat(modelToUse, promptText);
+        }
       }
 
       /* Save AI response */
