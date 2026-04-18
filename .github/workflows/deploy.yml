@@ -81,7 +81,11 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/ec2_key
           chmod 600 ~/.ssh/ec2_key
-          ssh-keyscan -T 15 -H "$EC2_HOST" >> ~/.ssh/known_hosts
+          if ! ssh-keyscan -T 15 -H "$EC2_HOST" >> ~/.ssh/known_hosts; then
+            echo "Could not reach SSH on EC2_HOST port 22."
+            echo "Check that EC2_HOST is the current EC2 public IPv4/DNS and the EC2 security group allows inbound SSH from GitHub Actions."
+            exit 1
+          fi
 
       - name: Create app directory
         env:
