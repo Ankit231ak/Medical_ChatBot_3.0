@@ -22,18 +22,39 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+
+      - name: Find app directory
+        run: |
+          APP_PATH="$(dirname "$(find . -name package.json -not -path './node_modules/*' -print -quit)")"
+          if [ -z "$APP_PATH" ] || [ "$APP_PATH" = "." ]; then
+            APP_PATH="."
+          fi
+          if [ ! -f "$APP_PATH/package.json" ]; then
+            echo "Could not find package.json in this repository."
+            exit 1
+          fi
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
+          echo "Using app directory: $APP_PATH"
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          cd "$APP_PATH"
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Check server syntax
-        run: node --check server.js
+        run: |
+          cd "$APP_PATH"
+          node --check server.js
 
       - name: Build frontend
         env:
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
         run: |
+          cd "$APP_PATH"
           if [ -z "$VITE_CLERK_PUBLISHABLE_KEY" ]; then
             echo "Missing GitHub secret: VITE_CLERK_PUBLISHABLE_KEY"
             exit 1
@@ -83,7 +104,7 @@ jobs:
             --exclude='.env' \
             --exclude='storage.db' \
             --exclude='server.log' \
-            ./ "$EC2_USER@$EC2_HOST:$APP_DIR/"
+            "$APP_PATH/" "$EC2_USER@$EC2_HOST:$APP_DIR/"
 
       - name: Install production dependencies and restart
         env:
@@ -107,3 +128,4 @@ jobs:
             sudo nginx -t
             sudo systemctl reload nginx
           EOF
+
