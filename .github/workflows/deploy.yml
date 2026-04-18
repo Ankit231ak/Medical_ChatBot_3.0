@@ -2,24 +2,108 @@ name: Deploy to EC2
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  APP_DIR: /var/www/mediAI-app
 
 jobs:
   deploy:
+    name: Build and deploy
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
 
-      - name: Deploy to Server
-        uses: appleboy/ssh-action@master
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          host: ${{ secrets.HOST_DNS }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd /home/ubuntu/your-project-folder
-            git pull origin main
-            # If Node.js:
-            npm install
-            pm2 restart all
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check server syntax
+        run: node --check server.js
+
+      - name: Build frontend
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$VITE_CLERK_PUBLISHABLE_KEY" ]; then
+            echo "Missing GitHub secret: VITE_CLERK_PUBLISHABLE_KEY"
+            exit 1
+          fi
+          npm run build
+
+      - name: Prepare SSH
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          if [ -z "$EC2_HOST" ]; then
+            echo "Missing GitHub secret: EC2_HOST"
+            exit 1
+          fi
+          if [ -z "$EC2_SSH_KEY" ]; then
+            echo "Missing GitHub secret: EC2_SSH_KEY"
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Create app directory
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          if [ -z "$EC2_USER" ]; then
+            echo "Missing GitHub secret: EC2_USER"
+            exit 1
+          fi
+          ssh -i ~/.ssh/ec2_key "$EC2_USER@$EC2_HOST" \
+            "sudo mkdir -p '$APP_DIR' && sudo chown -R '$EC2_USER:$EC2_USER' '$APP_DIR'"
+
+      - name: Upload files to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/ec2_key" \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='.env' \
+            --exclude='storage.db' \
+            --exclude='server.log' \
+            ./ "$EC2_USER@$EC2_HOST:$APP_DIR/"
+
+      - name: Install production dependencies and restart
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -i ~/.ssh/ec2_key "$EC2_USER@$EC2_HOST" << EOF
+            set -e
+            cd "$APP_DIR"
+            if [ ! -f .env ]; then
+              echo "Missing $APP_DIR/.env on EC2. Create it once on the server before deploying."
+              exit 1
+            fi
+            npm ci --omit=dev
+            if pm2 describe mediai > /dev/null; then
+              pm2 restart mediai --update-env
+            else
+              pm2 start server.js --name mediai
+            fi
+            pm2 save
+            sudo nginx -t
+            sudo systemctl reload nginx
+          EOF
