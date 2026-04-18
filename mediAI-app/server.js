@@ -1,3 +1,5 @@
+import path from "path";
+import { fileURLToPath } from "url";
 import express from "express";
 import cors from "cors";
 import { open } from "sqlite";
@@ -8,6 +10,9 @@ import rateLimit from "express-rate-limit";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /* =========================
    GLOBAL CRASH GUARDS
@@ -506,6 +511,17 @@ app.delete("/api/history/:userId/:sessionId", async (req, res) => {
     console.error("Delete Session Error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
+});
+
+/* =========================
+   FRONTEND (PRODUCTION)
+========================= */
+const distPath = path.join(__dirname, "dist");
+
+app.use(express.static(distPath));
+
+app.get(/^\/(?!api).*/, (req, res) => {
+  res.sendFile(path.join(distPath, "index.html"));
 });
 
 /* =========================
