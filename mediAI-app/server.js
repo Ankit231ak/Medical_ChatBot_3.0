@@ -51,13 +51,20 @@ let AVAILABLE_MODELS = [
 
 /* =========================
    RATE LIMIT
+   Only limit expensive chat calls. A global limiter counts page assets,
+   videos, history calls, and model-list requests as "AI requests".
 ========================= */
-app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 50,
-  }),
-);
+const chatLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 25,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message:
+      "Too many chat requests. Please wait a few minutes and try again.",
+  },
+});
 
 /* =========================
    AI SETUP
@@ -75,6 +82,72 @@ You are MediAI, a helpful, concise medical assistant.
 Give short, structured answers with medicines and remedies.
 Add a small disclaimer at the end.
 `;
+
+async function callHuggingFaceChat(model, content) {
+  const hfResponse = await fetch(
+    "https://router.huggingface.co/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.HF_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content },
+        ],
+        max_tokens: 512,
+      }),
+    },
+  );
+
+  let data = null;
+  try {
+    data = await hfResponse.json();
+  } catch {
+    data = null;
+  }
+
+  if (!hfResponse.ok) {
+    const providerMessage =
+      data?.error?.message ||
+      data?.message ||
+      data?.error ||
+      `Hugging Face returned HTTP ${hfResponse.status}`;
+
+    if (hfResponse.status === 401) {
+      return "Hugging Face authentication failed. Please check HF_TOKEN on the server.";
+    }
+    if (hfResponse.status === 402 || hfResponse.status === 403) {
+      return `This model is not available for your Hugging Face account/token: ${model}. ${providerMessage}`;
+    }
+    if (hfResponse.status === 404) {
+      return `Model not found or not supported by Hugging Face Router: ${model}. Please check the model ID and provider.`;
+    }
+    if (hfResponse.status === 429) {
+      return "Hugging Face is rate limiting this token/model right now. Please wait and try again, or switch to Gemini.";
+    }
+
+    return `Model error (${hfResponse.status}): ${providerMessage}`;
+  }
+
+  console.log(
+    "HF RESPONSE summary:",
+    data?.model,
+    "—",
+    data?.usage?.total_tokens,
+    "tokens",
+  );
+
+  const text = data?.choices?.[0]?.message?.content;
+  if (typeof text === "string" && text.trim()) {
+    return text;
+  }
+
+  return `No text response returned by model: ${model}. This model may not support chat completions through Hugging Face Router.`;
+}
 
 /* =========================
    DATABASE
@@ -290,7 +363,7 @@ app.post("/api/admin/delete-user-data", adminAuth, async (req, res) => {
    CHAT API
 ========================= */
 
-app.post("/api/chat", async (req, res) => {
+app.post("/api/chat", chatLimiter, async (req, res) => {
   await checkBlockedUser(db, req, res, async () => {
     try {
       const { content, userId, sessionId, modelChoice } = req.body;
@@ -354,29 +427,10 @@ app.post("/api/chat", async (req, res) => {
               "⚡ Gemini 503 — auto-falling back to Llama (HuggingFace)",
             );
             const fallbackModel = "meta-llama/Llama-3.2-1B-Instruct";
-            const hfFallback = await fetch(
-              "https://router.huggingface.co/v1/chat/completions",
-              {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${process.env.HF_TOKEN}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  model: fallbackModel,
-                  messages: [
-                    { role: "system", content: SYSTEM_PROMPT },
-                    { role: "user", content },
-                  ],
-                  max_tokens: 512,
-                }),
-              },
+            aiResponseText = await callHuggingFaceChat(
+              fallbackModel,
+              content,
             );
-            const fallbackData = await hfFallback.json();
-            aiResponseText =
-              fallbackData?.choices?.[0]?.message?.content ||
-              fallbackData?.error?.message ||
-              "AI is temporarily busy. Please try again shortly.";
             // Prefix so the user knows what happened
             aiResponseText = `_(Gemini busy, responded via Llama)_\n\n${aiResponseText}`;
           } else {
@@ -385,40 +439,7 @@ app.post("/api/chat", async (req, res) => {
         }
       } else {
         /* HUGGING FACE */
-        const hfResponse = await fetch(
-          "https://router.huggingface.co/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${process.env.HF_TOKEN}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: modelToUse,
-              messages: [
-                { role: "system", content: SYSTEM_PROMPT },
-                { role: "user", content },
-              ],
-              max_tokens: 512,
-            }),
-          },
-        );
-
-        const data = await hfResponse.json();
-        console.log(
-          "HF RESPONSE summary:",
-          data?.model,
-          "—",
-          data?.usage?.total_tokens,
-          "tokens",
-        );
-
-        if (data?.error) {
-          aiResponseText = `⚠️ Model error: ${data.error.message || JSON.stringify(data.error)}`;
-        } else {
-          aiResponseText =
-            data?.choices?.[0]?.message?.content || "No response from model.";
-        }
+        aiResponseText = await callHuggingFaceChat(modelToUse, content);
       }
 
       /* Save AI response */
