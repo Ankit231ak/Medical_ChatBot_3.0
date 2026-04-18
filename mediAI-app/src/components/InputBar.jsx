@@ -163,7 +163,7 @@ export default function InputBar({
     <div className="relative">
       {/* Voice Panel */}
       {showVoicePanel && (
-        <div className="mb-3 bg-[#070d1a]/95 backdrop-blur-xl border border-white/8 rounded-2xl p-6 flex flex-col items-center gap-5 animate-message-in">
+        <div className="mb-3 bg-[#070d1a]/95 backdrop-blur-xl border border-white/8 rounded-2xl p-4 sm:p-6 flex flex-col items-center gap-4 sm:gap-5 animate-message-in">
           <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold ">
             Voice Assistant
           </div>
@@ -250,7 +250,7 @@ export default function InputBar({
           {files.map((f, i) => (
             <div
               key={i}
-              className="relative group flex items-center gap-2 bg-slate-800 border border-white/10 rounded-xl px-3 py-2"
+              className="relative group flex items-center gap-2 bg-slate-800 border border-white/10 rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2"
             >
               {f.type === "image" ? (
                 <img
@@ -296,7 +296,7 @@ export default function InputBar({
 
       {/* Main Input Box */}
       <div
-        className={`group relative flex items-end gap-2 bg-slate-900/80 backdrop-blur-xl border rounded-2xl px-3 py-3 transition-all duration-500 focus-within:border-cyan-500/40 focus-within:shadow-[0_0_40px_rgba(34,211,238,0.1)] focus-within:-translate-y-1 focus-within:bg-[#0f172a] ${
+        className={`group relative flex items-end gap-2 bg-slate-900/80 backdrop-blur-xl border rounded-2xl px-2.5 sm:px-3 py-2 sm:py-3 transition-all duration-500 focus-within:border-cyan-500/40 focus-within:shadow-[0_0_40px_rgba(34,211,238,0.1)] sm:focus-within:-translate-y-1 focus-within:bg-[#0f172a] ${
           dragOver
             ? "border-cyan-400/50 bg-cyan-400/5"
             : "border-white/8 hover:border-white/15"
@@ -369,7 +369,7 @@ export default function InputBar({
           onKeyDown={handleKey}
           placeholder="Describe your symptoms or ask a medical question..."
           rows={1}
-          className="flex-1 resize-none bg-transparent text-sm text-slate-200 placeholder-slate-600 outline-none leading-6 py-1 min-h-[32px] max-h-[160px] overflow-y-auto scrollbar-thin"
+          className="flex-1 resize-none bg-transparent text-sm text-slate-200 placeholder-slate-600 outline-none leading-6 py-1 min-h-[32px] max-h-[112px] sm:max-h-[160px] overflow-y-auto scrollbar-thin"
           style={{ height: "32px" }}
         />
 
@@ -404,7 +404,7 @@ export default function InputBar({
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-1 mt-1.5">
+      <div className="hidden sm:flex items-center justify-between px-1 mt-1.5">
         <div className="text-xs text-slate-700">
           Enter to send • Shift+Enter for newline
         </div>
