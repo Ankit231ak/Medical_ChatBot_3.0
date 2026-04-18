@@ -151,11 +151,8 @@ jobs:
             cd "$APP_DIR"
             npm ci --omit=dev --no-audit --no-fund
             npm cache clean --force
-            if pm2 describe mediai > /dev/null; then
-              pm2 restart mediai --update-env
-            else
-              pm2 start server.js --name mediai
-            fi
+            pm2 delete mediai || true
+            pm2 start "$APP_DIR/server.js" --name mediai --update-env
             pm2 save
             sudo nginx -t
             sudo systemctl reload nginx
