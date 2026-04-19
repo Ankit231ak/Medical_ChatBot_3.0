@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>https://www.nineworld.space/gallery.html</loc>
+    <image:image>
+      <image:loc>https://www.nineworld.space/images/mediai-nine-homepage-cropped.png</image:loc>
+      <image:title>MediAI Nine homepage assistant avatar</image:title>
+      <image:caption>MediAI Nine homepage with animated assistant avatar and chatbot input.</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://www.nineworld.space/images/mediai-nine-image-analysis-cropped.png</image:loc>
+      <image:title>MediAI Nine image analysis chat screenshot</image:title>
+      <image:caption>MediAI Nine chat interface showing AI-assisted image analysis for skin patches.</image:caption>
+    </image:image>
+  </url>
+</urlset>

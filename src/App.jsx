@@ -268,7 +268,7 @@ export default function App() {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex h-screen bg-[#050b14] overflow-hidden">
+    <div className="flex h-[100dvh] min-h-[100svh] bg-[#050b14] overflow-hidden">
       {/* Background ambient glows */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-20%] left-[-10%] w-96 h-96 bg-blue-600/10 rounded-full blur-3xl" />
@@ -300,7 +300,7 @@ export default function App() {
         />
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col min-w-0 relative">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 relative">
           {/* Header */}
           <header className="absolute top-0 left-0 right-0 flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-[#050b14]/80 backdrop-blur-xl z-20">
             <button
@@ -377,7 +377,7 @@ export default function App() {
           </header>
 
           {/* Chat area */}
-          <div className="flex-1 overflow-y-auto flex flex-col scrollbar-thin pt-[68px]">
+          <div className="flex-1 min-h-0 overflow-y-auto flex flex-col scrollbar-thin pt-[60px] sm:pt-[68px]">
             {!hasMessages ? (
               isEngaged ? (
                 <div className="max-w-3xl mx-auto pl-6 py-6 space-y-5 -translate-x-4 w-full h-full flex flex-col justify-end pb-8 animate-message-in">
@@ -407,7 +407,7 @@ export default function App() {
           </div>
 
           {/* Input bar */}
-          <div className="border-t border-white/5 bg-[#050b14]/90 backdrop-blur-xl px-4 py-4 z-10 w-full relative">
+          <div className="border-t border-white/5 bg-[#050b14]/90 backdrop-blur-xl px-3 sm:px-4 pt-2 sm:pt-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-4 z-10 w-full relative">
             <div className="max-w-3xl mx-auto">
               <InputBar
                 onSend={sendMessage}
@@ -420,9 +420,10 @@ export default function App() {
 
           {/* Floating Avatar */}
           {(hasMessages || isLoading || isThinking) && (
-            <div className={`absolute top-24 right-10 z-30 pointer-events-none hidden lg:block transition-all duration-700 ${hasMessages ? '' : 'opacity-60'}`}>
+            <div className={`absolute top-24 right-10 z-30 pointer-events-auto hidden lg:block transition-all duration-700 ${hasMessages ? '' : 'opacity-60'}`}>
               <AssistantAvatar
                 state={assistantState}
+                hoverToListen
                 className="w-48 h-48 drop-shadow-[0_0_40px_rgba(34,211,238,0.4)]"
               />
             </div>

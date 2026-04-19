@@ -22,18 +22,39 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+
+      - name: Find app directory
+        run: |
+          APP_PATH="$(dirname "$(find . -name package.json -not -path './node_modules/*' -print -quit)")"
+          if [ -z "$APP_PATH" ] || [ "$APP_PATH" = "." ]; then
+            APP_PATH="."
+          fi
+          if [ ! -f "$APP_PATH/package.json" ]; then
+            echo "Could not find package.json in this repository."
+            exit 1
+          fi
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
+          echo "Using app directory: $APP_PATH"
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          cd "$APP_PATH"
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Check server syntax
-        run: node --check server.js
+        run: |
+          cd "$APP_PATH"
+          node --check server.js
 
       - name: Build frontend
         env:
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
         run: |
+          cd "$APP_PATH"
           if [ -z "$VITE_CLERK_PUBLISHABLE_KEY" ]; then
             echo "Missing GitHub secret: VITE_CLERK_PUBLISHABLE_KEY"
             exit 1
@@ -53,10 +74,18 @@ jobs:
             echo "Missing GitHub secret: EC2_SSH_KEY"
             exit 1
           fi
+          if echo "$EC2_HOST" | grep -Eq '^(https?://|ssh://|.*@)'; then
+            echo "EC2_HOST must be only the public IP or DNS name, not a URL and not user@host."
+            exit 1
+          fi
           mkdir -p ~/.ssh
           printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/ec2_key
           chmod 600 ~/.ssh/ec2_key
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+          if ! ssh-keyscan -T 15 -H "$EC2_HOST" >> ~/.ssh/known_hosts; then
+            echo "Could not reach SSH on EC2_HOST port 22."
+            echo "Check that EC2_HOST is the current EC2 public IPv4/DNS and the EC2 security group allows inbound SSH from GitHub Actions."
+            exit 1
+          fi
 
       - name: Create app directory
         env:
@@ -83,26 +112,47 @@ jobs:
             --exclude='.env' \
             --exclude='storage.db' \
             --exclude='server.log' \
-            ./ "$EC2_USER@$EC2_HOST:$APP_DIR/"
+            "$APP_PATH/" "$EC2_USER@$EC2_HOST:$APP_DIR/"
 
       - name: Install production dependencies and restart
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: |
+          for secret_name in GEMINI_API_KEY HF_TOKEN CLERK_SECRET_KEY VITE_CLERK_PUBLISHABLE_KEY ADMIN_USERNAME ADMIN_PASSWORD; do
+            if [ -z "${!secret_name}" ]; then
+              echo "Missing GitHub secret: $secret_name"
+              exit 1
+            fi
+          done
+
+          {
+            echo "PORT=3000"
+            echo "NODE_ENV=production"
+            echo "GEMINI_API_KEY=$GEMINI_API_KEY"
+            echo "HF_TOKEN=$HF_TOKEN"
+            echo "CLERK_SECRET_KEY=$CLERK_SECRET_KEY"
+            echo "VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY"
+            echo "ADMIN_USERNAME=$ADMIN_USERNAME"
+            echo "ADMIN_PASSWORD=$ADMIN_PASSWORD"
+          } > .env.production
+
+          scp -i ~/.ssh/ec2_key .env.production "$EC2_USER@$EC2_HOST:$APP_DIR/.env"
+          rm .env.production
+
           ssh -i ~/.ssh/ec2_key "$EC2_USER@$EC2_HOST" << EOF
             set -e
             cd "$APP_DIR"
-            if [ ! -f .env ]; then
-              echo "Missing $APP_DIR/.env on EC2. Create it once on the server before deploying."
-              exit 1
-            fi
-            npm ci --omit=dev
-            if pm2 describe mediai > /dev/null; then
-              pm2 restart mediai --update-env
-            else
-              pm2 start server.js --name mediai
-            fi
+            npm ci --omit=dev --no-audit --no-fund
+            npm cache clean --force
+            pm2 delete mediai || true
+            pm2 start "$APP_DIR/server.js" --name mediai --update-env
             pm2 save
             sudo nginx -t
             sudo systemctl reload nginx
