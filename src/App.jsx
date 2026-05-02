@@ -4,7 +4,8 @@ import ChatMessage from "./components/ChatMessage.jsx";
 import InputBar from "./components/InputBar.jsx";
 import WelcomeScreen from "./components/WelcomeScreen.jsx";
 import AssistantAvatar from "./components/AssistantAvatar.jsx";
-import { SignedIn, SignedOut, SignIn, useUser } from "@clerk/clerk-react";
+import BackgroundSwarm from "./components/BackgroundSwarm.jsx";
+import { SignedIn, SignedOut, SignIn, SignUp, useUser } from "@clerk/clerk-react";
 import "./index.css";
 
 // Backend API URL — use Vite proxy so all /api calls go through localhost:5173 → 3001
@@ -36,6 +37,15 @@ export default function App() {
   const [isThinking, setIsThinking] = useState(false);
   const [hasError, setHasError] = useState(false);
   const bottomRef = useRef(null);
+  const [isSignUp, setIsSignUp] = useState(() => window.location.hash.includes("sign-up"));
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      setIsSignUp(window.location.hash.includes("sign-up"));
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   let assistantState = "normal";
   if (hasError) assistantState = "error";
@@ -268,21 +278,25 @@ export default function App() {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex h-[100dvh] min-h-[100svh] bg-[#050b14] overflow-hidden">
-      {/* Background ambient glows */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-20%] left-[-10%] w-96 h-96 bg-blue-600/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-[-10%] right-[-5%] w-80 h-80 bg-cyan-600/8 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-900/5 rounded-full blur-3xl" />
-      </div>
-
+    <div className="flex h-[100dvh] min-h-[100svh] bg-[#000] overflow-hidden">
       <SignedOut>
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-[#050b14]/50 backdrop-blur-md">
-          <SignIn routing="hash" />
+        <BackgroundSwarm />
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-[#050b14]/30 backdrop-blur-sm">
+          {isSignUp ? (
+            <SignUp routing="hash" />
+          ) : (
+            <SignIn routing="hash" />
+          )}
         </div>
       </SignedOut>
 
       <SignedIn>
+        {/* Background ambient glows for signed in state */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-[-20%] left-[-10%] w-96 h-96 bg-blue-600/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-[-10%] right-[-5%] w-80 h-80 bg-cyan-600/8 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-900/5 rounded-full blur-3xl" />
+        </div>
         {/* Sidebar */}
         <Sidebar
           isOpen={sidebarOpen}
