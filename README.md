@@ -1,4 +1,4 @@
-🩺 MediAI – AI Medical Assistant
+# 🩺 MediAI – AI Medical Assistant
 
 MediAI is an AI-powered medical assistant web application built to help users with symptom guidance, general health questions, over-the-counter medicine information, and skin issue analysis through uploaded images.
 
@@ -6,7 +6,7 @@ It provides a clean chatbot interface with AI-generated responses and user-speci
 
 ---
 
-🚀 Features
+## 🚀 Features
 
 - 💬 AI-powered chatbot for medical guidance
 - 🧠 Supports multiple AI models (Gemini / Gemma)
@@ -19,7 +19,7 @@ It provides a clean chatbot interface with AI-generated responses and user-speci
 
 ---
 
-🛠️ Tech Stack
+## 🛠️ Tech Stack
 
 Frontend
 
@@ -60,7 +60,7 @@ Authentication
 
 ---
 
-⚙️ Installation
+## ⚙️ Installation
 
 Clone the repository:
 
@@ -77,7 +77,7 @@ npm run dev
 
 ---
 
-👨‍💻 Contributors
+## 👨‍💻 Contributors
 
 - Adhiraj Mishra
 - Ankit Kumar
@@ -87,7 +87,7 @@ This project was developed collaboratively as a college project.
 
 ---
 
-⚠️ Medical Disclaimer
+## ⚠️ Medical Disclaimer
 
 MediAI is intended for educational and informational purposes only and is not a substitute for professional medical advice, diagnosis, or treatment.
 
@@ -95,7 +95,7 @@ Always seek the advice of a qualified healthcare professional regarding any medi
 
 ---
 
-📄 License
+## 📄 License
 
 This project is licensed under the MIT License.
 
