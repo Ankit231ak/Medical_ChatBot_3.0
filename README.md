@@ -1,12 +1,12 @@
-# 🩺 MediAI – AI Medical Assistant
+🩺 MediAI – AI Medical Assistant
 
-MediAI is an AI-powered medical assistant web application built to help users with **symptom guidance, general health questions, over-the-counter medicine information, and skin issue analysis through uploaded images**.
+MediAI is an AI-powered medical assistant web application built to help users with symptom guidance, general health questions, over-the-counter medicine information, and skin issue analysis through uploaded images.
 
 It provides a clean chatbot interface with AI-generated responses and user-specific chat history.
 
 ---
 
-## 🚀 Features
+🚀 Features
 
 - 💬 AI-powered chatbot for medical guidance
 - 🧠 Supports multiple AI models (Gemini / Gemma)
@@ -19,50 +19,65 @@ It provides a clean chatbot interface with AI-generated responses and user-speci
 
 ---
 
-## 🛠️ Tech Stack
+🛠️ Tech Stack
 
-### Frontend
+Frontend
+
 - React
 - Vite
 - JavaScript
 - CSS / Tailwind CSS
 
-### Backend
+Backend
+
 - Node.js
 - Express.js
 
-### Database
+Database
+
 - SQLite
 
-### AI Models
+AI Models
+
 - Google Gemini
 - Gemma (via Hugging Face API)
 
-### Authentication
+Authentication
+
 - Clerk
 
 ---
 
-## 📸 Screenshots
+📸 Screenshots
 
-### 🖥️ Chat Interface
-![Chat UI Screenshot](./image.png)
+🖥️ Chat Interface
 
-### 🖼️ Skin Analysis Upload
-![Skin Analysis Screenshot](./image2.png)
+"Chat UI Screenshot" (./image.png)
 
-> Add your screenshots later inside the `screenshots` folder.
+🖼️ Skin Analysis Upload
+
+"Skin Analysis Screenshot" (./image2.png)
+
+«Add your screenshots later inside the "screenshots" folder.»
 
 ---
 
-## ⚙️ Installation
+⚙️ Installation
 
 Clone the repository:
 
-```bash
 git clone https://github.com/Ankit231ak/Ai-medical-chatbot.git
 cd mediAi-app
 
+Install dependencies:
+
+npm install
+
+Start the development server:
+
+npm run dev
+
+---
 
 👨‍💻 Contributors
 
@@ -72,11 +87,15 @@ cd mediAi-app
 
 This project was developed collaboratively as a college project.
 
+---
+
 ⚠️ Medical Disclaimer
 
 MediAI is intended for educational and informational purposes only and is not a substitute for professional medical advice, diagnosis, or treatment.
 
 Always seek the advice of a qualified healthcare professional regarding any medical condition. Do not disregard professional medical advice or delay seeking it because of information provided by this application.
+
+---
 
 📄 License
 
