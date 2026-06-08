@@ -65,17 +65,17 @@ Authentication
 ⚙️ Installation
 
 Clone the repository:
-```
+
 git clone https://github.com/Ankit231ak/Ai-medical-chatbot.git
-cd mediAi-app```
+cd mediAi-app
 
 Install dependencies:
 
-```npm install```
+npm install
 
 Start the development server:
 
-```npm run dev```
+npm run dev
 
 ---
 
