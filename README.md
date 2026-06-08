@@ -48,17 +48,15 @@ Authentication
 
 ---
 
-📸 Screenshots
+## 📸 Screenshots
 
-🖥️ Chat Interface
+### 🖥️ Chat Interface
+![Chat UI Screenshot](./image.png)
 
-"Chat UI Screenshot" (./image.png)
+### 🖼️ Skin Analysis Upload
+![Skin Analysis Screenshot](./image2.png)
 
-🖼️ Skin Analysis Upload
-
-"Skin Analysis Screenshot" (./image2.png)
-
-«Add your screenshots later inside the "screenshots" folder.»
+> Add your screenshots later inside the `screenshots` folder.
 
 ---
 
