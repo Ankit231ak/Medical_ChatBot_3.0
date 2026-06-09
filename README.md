@@ -51,9 +51,11 @@ Authentication
 ## 📸 Screenshots
 
 ### 🖥️ Chat Interface
+
 ![Chat UI Screenshot](./image.png)
 
 ### 🖼️ Skin Analysis Upload
+
 ![Skin Analysis Screenshot](./image2.png)
 
 > Add your screenshots later inside the `screenshots` folder.
@@ -64,16 +66,16 @@ Authentication
 
 Clone the repository:
 
-git clone https://github.com/Ankit231ak/Ai-medical-chatbot.git
-cd mediAi-app
+> git clone https://github.com/Ankit231ak/Ai-medical-chatbot.git
+> cd mediAi-app
 
 Install dependencies:
 
-npm install
+> npm install
 
 Start the development server:
 
-npm run dev
+> npm run dev
 
 ---
 
@@ -100,5 +102,7 @@ Always seek the advice of a qualified healthcare professional regarding any medi
 This project is licensed under the MIT License.
 
 Copyright (c) 2026 The MediAI Team
+
+See the LICENSE file for complete license details.
 
 See the LICENSE file for complete license details.
