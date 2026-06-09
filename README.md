@@ -64,16 +64,16 @@ Authentication
 
 ## ⚙️ Installation
 
-Clone the repository:
+- Clone the repository:
 
 > git clone https://github.com/Ankit231ak/Ai-medical-chatbot.git
 > cd mediAi-app
 
-Install dependencies:
+- Install dependencies:
 
 > npm install
 
-Start the development server:
+- Start the development server:
 
 > npm run dev
 
@@ -102,7 +102,5 @@ Always seek the advice of a qualified healthcare professional regarding any medi
 This project is licensed under the MIT License.
 
 Copyright (c) 2026 The MediAI Team
-
-See the LICENSE file for complete license details.
 
 See the LICENSE file for complete license details.
