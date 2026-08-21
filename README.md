@@ -45,7 +45,6 @@ AI Models
 Authentication
 
 - Clerk
-
 ---
 
 ## 📸 Screenshots
