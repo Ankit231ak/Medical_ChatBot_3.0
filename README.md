@@ -96,11 +96,3 @@ MediAI is intended for educational and informational purposes only and is not a 
 Always seek the advice of a qualified healthcare professional regarding any medical condition. Do not disregard professional medical advice or delay seeking it because of information provided by this application.
 
 ---
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
-Copyright (c) 2026 The MediAI Team
-
-See the LICENSE file for complete license details.
